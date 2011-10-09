@@ -33,29 +33,33 @@ import org.powertac.common.spring.SpringApplicationContext;
 import org.powertac.common.state.Domain;
 import org.powertac.common.state.StateChange;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Autowired;
 //import org.springframework.beans.factory.annotation.Autowired;
 //import org.springframework.beans.factory.annotation.Configurable;
 //import org.springframework.context.ApplicationContext;
 //import org.springframework.context.ApplicationContextAware;
 
 /**
- * Entity wrapper for TariffSpecification that supports Tariff evaluation 
- * and billing. Instances of this class are not intended to be serialized.
- * Tariffs are composed of Rates, which may be applicable for limited daily
- * and/or weekly times, and within particular usage tiers. The Tariff
- * transforms the list of Rates into an array, indexed first by tier and
- * second by hour, making it easy to find the correct Rate that applies for
- * a particular accounting event. This will also make it easy to estimate the
- * cost of a multi-Rate Tariff given an expected load/production profile.
+ * Entity wrapper for TariffSpecification that supports Tariff evaluation and
+ * billing. Instances of this class are not intended to be serialized. Tariffs
+ * are composed of Rates, which may be applicable for limited daily and/or
+ * weekly times, and within particular usage tiers. The Tariff transforms the
+ * list of Rates into an array, indexed first by tier and second by hour, making
+ * it easy to find the correct Rate that applies for a particular accounting
+ * event. This will also make it easy to estimate the cost of a multi-Rate
+ * Tariff given an expected load/production profile.
  * <p>
- * This is not a serializable type; The server and brokers are responsible
- * for creating and maintaining their own Tariff entities if they have an
- * interest in the transformation of TariffSpecification represented by a
- * Tariff instance.</p>
+ * This is not a serializable type; The server and brokers are responsible for
+ * creating and maintaining their own Tariff entities if they have an interest
+ * in the transformation of TariffSpecification represented by a Tariff
+ * instance.
+ * </p>
  * <p>
- * <strong>NOTE:</strong> When creating one of these for the first time, you must
- * call the init() method to initialize the publication date. It does not work
- * to call it inside the constructor for some reason.</p>
+ * <strong>NOTE:</strong> When creating one of these for the first time, you
+ * must call the init() method to initialize the publication date. It does not
+ * work to call it inside the constructor for some reason.
+ * </p>
+ * 
  * @author John Collins
  */
 @Domain
@@ -70,15 +74,15 @@ public class Tariff
     PENDING, OFFERED, ACTIVE, WITHDRAWN, KILLED, INACTIVE
   }
 
-  //@Autowired
+  @Autowired
   private TimeService timeService;
-  
-  //@Autowired
+
+  @Autowired
   private TariffRepo tariffRepo;
 
   private long specId;
 
-  /** The Tariff spec*/
+  /** The Tariff spec */
   private TariffSpecification tariffSpec;
 
   /** The broker behind this tariff */
@@ -97,29 +101,29 @@ public class Tariff
 
   /** Records the date when the Tariff was first offered */
   private Instant offerDate;
-  
+
   /** Tariff expiration date, possibly updated from original spec */
   private Instant expiration;
 
   /** Maximum future interval over which price can be known */
-  //private Duration maxHorizon; // TODO lazy instantiation?
+  // private Duration maxHorizon; // TODO lazy instantiation?
 
   /** True if the maps are keyed by hour-in-week rather than hour-in-day */
   private boolean isWeekly = false;
   private boolean analyzed = false;
-  
+
   // local rate id map to support updates of hourly rates
   private HashMap<Long, Rate> rateIdMap;
 
   // map is an array, indexed by tier-threshold and hour-in-day/week
-  private List< Double > tiers;
+  private List<Double> tiers;
   private Rate[][] rateMap;
 
   /**
-   * Initializes the Tariff, setting the publication date and running
-   * the internal analyzer to build the rate map.  
+   * Initializes the Tariff, setting the publication date and running the
+   * internal analyzer to build the rate map.
    */
-  public Tariff (TariffSpecification spec)
+  public Tariff(TariffSpecification spec)
   {
     tariffSpec = spec;
     specId = spec.getId();
@@ -142,26 +146,27 @@ public class Tariff
   }
 
   /**
-   * Initializes tariff by building the rate map. Must be called before
-   * usage charges can be computed. This is not in the constructor because
-   * of testability problems.
+   * Initializes tariff by building the rate map. Must be called before usage
+   * charges can be computed. This is not in the constructor because of
+   * testability problems.
    */
-  public void init ()
+  public void init()
   {
-    timeService = (TimeService)SpringApplicationContext.getBean("timeService");
-    tariffRepo= (TariffRepo)SpringApplicationContext.getBean("tariffRepo");
+    timeService = (TimeService) SpringApplicationContext.getBean("timeService");
+    tariffRepo = (TariffRepo) SpringApplicationContext.getBean("tariffRepo");
+    tariffRepo.addTariff(this);
     if (timeService == null)
       log.error("timeService not initialized!");
     offerDate = timeService.getCurrentTime();
     analyze();
   }
-  
-  public TariffSpecification getTariffSpecification ()
+
+  public TariffSpecification getTariffSpecification()
   {
     return tariffSpec;
   }
-  
-  public long getSpecId ()
+
+  public long getSpecId()
   {
     return specId;
   }
@@ -169,17 +174,17 @@ public class Tariff
   /**
    * make id a synonym for specId
    */
-  public long getId ()
+  public long getId()
   {
     return specId;
   }
-  
+
   /**
-   * Adds a new HourlyCharge to its Rate. Returns true just
-   * in case the operation was successful.
+   * Adds a new HourlyCharge to its Rate. Returns true just in case the
+   * operation was successful.
    */
   @StateChange
-  public boolean addHourlyCharge (HourlyCharge newCharge, long rateId)
+  public boolean addHourlyCharge(HourlyCharge newCharge, long rateId)
   {
     Rate theRate = rateIdMap.get(rateId);
     if (theRate == null) {
@@ -190,7 +195,7 @@ public class Tariff
   }
 
   /** Returns the actual realized price, or 0.0 if information unavailable */
-  public double getRealizedPrice ()
+  public double getRealizedPrice()
   {
     if (totalUsage == 0.0)
       return 0.0;
@@ -199,33 +204,37 @@ public class Tariff
   }
 
   /** Pass-through for TariffSpecification.minDuration */
-  public long getMinDuration ()
+  public long getMinDuration()
   {
     return tariffSpec.getMinDuration();
   }
 
   /** Type of power covered by this tariff */
-  public PowerType getPowerType ()
+  public PowerType getPowerType()
   {
     return tariffSpec.getPowerType();
   }
 
-  /** One-time payment for subscribing to tariff, positive for payment
-   *  from customer, negative for payment to customer. */
-  public double getSignupPayment ()
+  /**
+   * One-time payment for subscribing to tariff, positive for payment from
+   * customer, negative for payment to customer.
+   */
+  public double getSignupPayment()
   {
     return tariffSpec.getSignupPayment();
   }
 
-  /** Payment from customer to broker for canceling subscription before
-   *  minDuration has elapsed. */
-  public double getEarlyWithdrawPayment ()
+  /**
+   * Payment from customer to broker for canceling subscription before
+   * minDuration has elapsed.
+   */
+  public double getEarlyWithdrawPayment()
   {
     return tariffSpec.getEarlyWithdrawPayment();
   }
 
   /** Flat payment per period for two-part tariffs */
-  public double getPeriodicPayment ()
+  public double getPeriodicPayment()
   {
     return tariffSpec.getPeriodicPayment();
   }
@@ -234,21 +243,22 @@ public class Tariff
    * Adds periodic payments to the total cost, so realized price includes it.
    */
   @StateChange
-  public void addPeriodicPayment ()
+  public void addPeriodicPayment()
   {
     totalCost += getPeriodicPayment();
   }
 
-  /** 
-   * Returns the usage charge for a single customer in the current timeslot. 
-   * If the kwh parameter is given as 1.0, you get the per-kwh value. If you supply
-   * a non-zero value for cumulativeUsage, then the charge will be affected by the
-   * rate tier structure in accordance with the new cumulative usage.
+  /**
+   * Returns the usage charge for a single customer in the current timeslot. If
+   * the kwh parameter is given as 1.0, you get the per-kwh value. If you supply
+   * a non-zero value for cumulativeUsage, then the charge will be affected by
+   * the rate tier structure in accordance with the new cumulative usage.
    * <p>
    * If the recordUsage parameter is true, then the usage and price will be
-   * recorded to update the realizedPrice.</p>
+   * recorded to update the realizedPrice.
+   * </p>
    */
-  public double getUsageCharge (double kwh, double cumulativeUsage, boolean recordUsage)
+  public double getUsageCharge(double kwh, double cumulativeUsage, boolean recordUsage)
   {
     double amt = getUsageCharge(timeService.getCurrentTime(), kwh, cumulativeUsage);
     if (recordUsage) {
@@ -258,16 +268,15 @@ public class Tariff
     return amt;
   }
 
-  /** 
-   * Returns the usage charge for a single customer using an amount of 
-   * energy at some time in 
-   * the past or future. If the requested time is farther in the future 
-   * than maxHorizon, then the result will may be a default value, which 
-   * may not be useful. The cumulativeUsage parameter sets the base for
-   * probing the rate tier structure. Do not use this method for billing,
-   * because it does not update the realized-price data.
+  /**
+   * Returns the usage charge for a single customer using an amount of energy at
+   * some time in the past or future. If the requested time is farther in the
+   * future than maxHorizon, then the result will may be a default value, which
+   * may not be useful. The cumulativeUsage parameter sets the base for probing
+   * the rate tier structure. Do not use this method for billing, because it
+   * does not update the realized-price data.
    */
-  public double getUsageCharge (Instant when, double kwh, double cumulativeUsage)
+  public double getUsageCharge(Instant when, double kwh, double cumulativeUsage)
   {
     // first, get the time index
     DateTime dt = new DateTime(when, DateTimeZone.UTC);
@@ -280,11 +289,9 @@ public class Tariff
     if (tiers == null || tiers.size() < 1) {
       log.error("uninitialized tariff " + getId());
       return 0.0;
-    }
-    else if (tiers.size() == 1) {
+    } else if (tiers.size() == 1) {
       return kwh * rateValue(0, di, when);
-    }
-    else {
+    } else {
       double remainingAmount = kwh;
       double accumulatedAmount = cumulativeUsage;
       double result = 0.0;
@@ -292,30 +299,27 @@ public class Tariff
       while (remainingAmount > 0.0) {
         if (tiers.size() > ti + 1) {
           // still tiers remaining
-          if (accumulatedAmount >= tiers.get(ti+1)) {
-            log.debug("accumulatedAmount " + accumulatedAmount + " above threshold " + (ti+1) + ":" + (tiers.get(ti+1)));
+          if (accumulatedAmount >= tiers.get(ti + 1)) {
+            log.debug("accumulatedAmount " + accumulatedAmount + " above threshold " + (ti + 1) + ":" + (tiers.get(ti + 1)));
             ti += 1;
-          }
-          else if (remainingAmount + accumulatedAmount > tiers.get(ti+1)) {
-            double amt = tiers.get(ti+1) - accumulatedAmount;
-            log.debug("split off " + amt + " below " + tiers.get(ti+1));
-            //result += amt * rateMap[ti++][di].getValue(when)
+          } else if (remainingAmount + accumulatedAmount > tiers.get(ti + 1)) {
+            double amt = tiers.get(ti + 1) - accumulatedAmount;
+            log.debug("split off " + amt + " below " + tiers.get(ti + 1));
+            // result += amt * rateMap[ti++][di].getValue(when)
             result += amt * rateValue(ti++, di, when);
             remainingAmount -= amt;
             accumulatedAmount += amt;
-          }
-          else {
+          } else {
             // it all fits in the current tier
             log.debug("amount " + remainingAmount + " fits in tier " + ti);
-            //result += remainingAmount * rateMap[ti][di].getValue(when)
+            // result += remainingAmount * rateMap[ti][di].getValue(when)
             result += remainingAmount * rateValue(ti, di, when);
             remainingAmount = 0.0;
           }
-        }
-        else {
+        } else {
           // last tier
           log.debug("remainder " + remainingAmount + " fits in top tier");
-          //result += remainingAmount * rateMap[ti][di].getValue(when)
+          // result += remainingAmount * rateMap[ti][di].getValue(when)
           result += remainingAmount * rateValue(ti, di, when);
           remainingAmount = 0.0;
         }
@@ -324,50 +328,49 @@ public class Tariff
     }
   }
 
-  public Instant getExpiration ()
+  public Instant getExpiration()
   {
     return expiration;
   }
-  
+
   /**
-   * True just in case the current time is past the expiration date
-   * of this Tariff.
+   * True just in case the current time is past the expiration date of this
+   * Tariff.
    */
-  public boolean isExpired ()
+  public boolean isExpired()
   {
     if (getExpiration() == null) {
       return false;
-    }
-    else {
+    } else {
       return !(timeService.getCurrentTime().isBefore(getExpiration()));
     }
   }
-  
+
   @StateChange
-  public void setExpiration (Instant newDate)
+  public void setExpiration(Instant newDate)
   {
     expiration = newDate;
   }
 
-  public Instant getOfferDate ()
+  public Instant getOfferDate()
   {
     return offerDate;
   }
-  
+
   /**
-   * True just in case the set of Rates cover all the possible hour
-   * and tier slots. If false, then there is some combination of hour
-   * and tier for which no Rate is specified.
+   * True just in case the set of Rates cover all the possible hour and tier
+   * slots. If false, then there is some combination of hour and tier for which
+   * no Rate is specified.
    */
-  public boolean isCovered ()
+  public boolean isCovered()
   {
     for (int tier = 0; tier < tiers.size(); tier++) {
-      for (int hour = 0; hour < (isWeekly? 24 * 7: 24); hour++) {
-        //def cell = rateMap[tier][hour]
-        //println "cell: ${cell}"
-        //if (cell == null) {
-        //  return false
-        //}
+      for (int hour = 0; hour < (isWeekly ? 24 * 7 : 24); hour++) {
+        // def cell = rateMap[tier][hour]
+        // println "cell: ${cell}"
+        // if (cell == null) {
+        // return false
+        // }
         if (rateMap[tier][hour] == null) {
           return false;
         }
@@ -376,43 +379,43 @@ public class Tariff
     return true;
   }
 
-  public TariffSpecification getTariffSpec ()
+  public TariffSpecification getTariffSpec()
   {
     return tariffSpec;
   }
 
-  public Broker getBroker ()
+  public Broker getBroker()
   {
     return broker;
   }
 
-  public State getState ()
+  public State getState()
   {
     return state;
   }
-  
+
   @StateChange
   public void setState(State newState)
   {
     state = newState;
   }
 
-  public Tariff getIsSupersededBy ()
+  public Tariff getIsSupersededBy()
   {
     return isSupersededBy;
   }
 
-  public double getTotalCost ()
+  public double getTotalCost()
   {
     return totalCost;
   }
 
-  public double getTotalUsage ()
+  public double getTotalUsage()
   {
     return totalUsage;
   }
 
-  public boolean isWeekly ()
+  public boolean isWeekly()
   {
     return isWeekly;
   }
@@ -420,25 +423,25 @@ public class Tariff
   /**
    * True just in case this tariff has been revoked.
    */
-  public boolean isRevoked ()
+  public boolean isRevoked()
   {
     return state == State.KILLED;
   }
 
   /**
-   * Processes the tariffSpec, extracting tiers and rates, building a map. We start by
-   * imposing a priority order on rate constraints, as follows:
+   * Processes the tariffSpec, extracting tiers and rates, building a map. We
+   * start by imposing a priority order on rate constraints, as follows:
    * <ol>
-   *   <li>tierThreshold &gt; 0</li>
-   *   <li>weeklyStart &gt; 0</li>
-   *   <li>dailyStart &gt; 0</li>
-   *   <li>no constraint</li>
+   * <li>tierThreshold &gt; 0</li>
+   * <li>weeklyStart &gt; 0</li>
+   * <li>dailyStart &gt; 0</li>
+   * <li>no constraint</li>
    * </ol>
    * We sort the set of rates on these criteria, then populate an array of size
    * [number of tiers][number of hours] where number of hours is either 24 or
-   * 168 depending on whether there are any weekly constraints. 
+   * 168 depending on whether there are any weekly constraints.
    */
-  private void analyze ()
+  private void analyze()
   {
     // Start by computing tier indices, and array width
     HashMap<Double, Integer> tierIndexMap = new HashMap<Double, Integer>();
@@ -481,7 +484,7 @@ public class Tariff
     }
 
     // Next, we create the rateMap
-    rateMap = new Rate[tierIndexMap.size()][isWeekly ? 7*24 : 24];
+    rateMap = new Rate[tierIndexMap.size()][isWeekly ? 7 * 24 : 24];
 
     // Finally, we step through the sorted Rates and fill in the
     // array. For each Rate, we add it to the array everywhere it
@@ -497,8 +500,7 @@ public class Tariff
         if (rate.getWeeklyBegin() >= 0) {
           day1 = rate.getWeeklyBegin() - 1; // days start at 1
           dayn = rate.getWeeklyBegin() - 1;
-        }
-        else {
+        } else {
           dayn = 6; // no days specified for weekly rate
         }
         if (rate.getWeeklyEnd() >= 0) {
@@ -513,9 +515,9 @@ public class Tariff
       }
       log.debug("day1=" + day1 + ", dayn=" + dayn + ", hr1=" + hr1 + ", hrn=" + hrn);
       // now we can fill in the array
-      for (int day = (dayn < day1? 0 : day1); day <= dayn; day++) {
+      for (int day = (dayn < day1 ? 0 : day1); day <= dayn; day++) {
         // handle daily wrap-arounds
-        for (int hour = (hrn < hr1? 0 : hr1); hour <= hrn; hour++) {
+        for (int hour = (hrn < hr1 ? 0 : hr1); hour <= hrn; hour++) {
           rateMap[ti][hour + day * 24] = rate;
         }
         if (hrn < hr1) {
@@ -528,7 +530,7 @@ public class Tariff
       if (dayn < day1) {
         for (int day = day1; day <= 6; day++) {
           // handle daily wrap-arounds
-          for (int hour = (hrn < hr1? 0 : hr1); hour <= hrn; hour++) {
+          for (int hour = (hrn < hr1 ? 0 : hr1); hour <= hrn; hour++) {
             rateMap[ti][hour + day * 24] = rate;
           }
           if (hrn < hr1) {
@@ -541,8 +543,8 @@ public class Tariff
     }
     analyzed = true;
   }
-  
-  private double rateValue (int tierIndex, int timeIndex, Instant when)
+
+  private double rateValue(int tierIndex, int timeIndex, Instant when)
   {
     Rate rate = rateMap[tierIndex][timeIndex];
     if (rate == null) {
@@ -551,13 +553,13 @@ public class Tariff
     }
     return rate.getValue(when);
   }
-//
-//  public void setApplicationContext (ApplicationContext ctx)
-//  throws BeansException
-//  {
-//    System.out.println("tariff - set application context");
-//    timeService = ctx.getBean(TimeService.class);
-//    tariffRepo = ctx.getBean(TariffRepo.class);
-//  }
+  //
+  // public void setApplicationContext (ApplicationContext ctx)
+  // throws BeansException
+  // {
+  // System.out.println("tariff - set application context");
+  // timeService = ctx.getBean(TimeService.class);
+  // tariffRepo = ctx.getBean(TariffRepo.class);
+  // }
 
 }

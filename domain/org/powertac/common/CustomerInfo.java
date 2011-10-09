@@ -20,136 +20,154 @@ import java.util.ArrayList;
 
 import org.powertac.common.enumerations.CustomerType;
 import org.powertac.common.enumerations.PowerType;
+import org.powertac.common.repo.CustomerRepo;
+import org.powertac.common.spring.SpringApplicationContext;
 import org.powertac.common.state.Domain;
 import org.powertac.common.state.StateChange;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import com.thoughtworks.xstream.annotations.*;
 
 /**
- * A {@code CustomerInfo} instance represents a customer model (i.e. a consumer or a producer)
- * within a specific competition. The customer data stored is published to all brokers in
- * the respective competition in order to provide them with an brief overview on what type
- * of customers participate in the specific competition. The collection of CustomerInfo
- * instances are serialized and sent to brokers at the beginning of a game, allowing brokers
- * to correlate tariff subscriptions and power consumption/production with individual customers.
- *
+ * A {@code CustomerInfo} instance represents a customer model (i.e. a consumer
+ * or a producer) within a specific competition. The customer data stored is
+ * published to all brokers in the respective competition in order to provide
+ * them with an brief overview on what type of customers participate in the
+ * specific competition. The collection of CustomerInfo instances are serialized
+ * and sent to brokers at the beginning of a game, allowing brokers to correlate
+ * tariff subscriptions and power consumption/production with individual
+ * customers.
+ * 
  * @author Carsten Block, KIT; John Collins, U of Minnesota
  */
 @Domain
 @XStreamAlias("cust-info")
-public class CustomerInfo //implements Serializable 
+public class CustomerInfo // implements Serializable
 {
+  @Autowired
+  CustomerRepo customerRepo;
+
   @XStreamAsAttribute
   private long id = IdGenerator.createId();
 
   /** Name of the customer model */
   private String name;
 
-  /** gives a "rough" classification what type of customer to 
-   * expect based on an enumeration, i.e. a fixed set of 
-   * customer types. Defaults to CustomerHousehold. */
+  /**
+   * gives a "rough" classification what type of customer to expect based on an
+   * enumeration, i.e. a fixed set of customer types. Defaults to
+   * CustomerHousehold.
+   */
   @XStreamAsAttribute
   private CustomerType customerType = CustomerType.CustomerHousehold;
-  
+
   /** population represented by this model */
   @XStreamAsAttribute
   private int population;
 
   /** gives the available power classifications of the customer */
   private ArrayList<PowerType> powerTypes;
-  
-  /** describes whether or not this customer engages in multiple contracts at the same time.
-   * Defaults to false. */
+
+  /**
+   * describes whether or not this customer engages in multiple contracts at the
+   * same time. Defaults to false.
+   */
   @XStreamAsAttribute
   private boolean multiContracting = false;
 
-  /** describes whether or not this customer negotiates over contracts.
-   * Defaults to false. */
+  /**
+   * describes whether or not this customer negotiates over contracts. Defaults
+   * to false.
+   */
   @XStreamAsAttribute
   private boolean canNegotiate = false;
-  
+
   /**
-   * Creates a new CustomerInfo, with no power types set. Chain calls
-   * to addPowerType() to add the correct power types.
+   * Creates a new CustomerInfo, with no power types set. Chain calls to
+   * addPowerType() to add the correct power types.
    */
-  public CustomerInfo (String name, int population)
+  public CustomerInfo(String name, int population)
   {
     super();
+    customerRepo = (CustomerRepo) SpringApplicationContext.getBean("customerRepo");
+
     powerTypes = new ArrayList<PowerType>();
     this.name = name;
     this.population = population;
+    customerRepo.add(this);
   }
 
-  public long getId ()
+  public long getId()
   {
     return id;
   }
 
-  public String getName ()
+  public String getName()
   {
     return name;
   }
 
-  public int getPopulation ()
+  public int getPopulation()
   {
     return population;
   }
 
   @StateChange
-  public void setPopulation (Integer population)
+  public void setPopulation(Integer population)
   {
     this.population = population;
   }
 
-  public CustomerType getCustomerType ()
+  public CustomerType getCustomerType()
   {
     return customerType;
   }
-  
+
   @StateChange
-  public CustomerInfo withCustomerType (CustomerType type)
+  public CustomerInfo withCustomerType(CustomerType type)
   {
     customerType = type;
     return this;
   }
 
-  public ArrayList<PowerType> getPowerTypes ()
+  public ArrayList<PowerType> getPowerTypes()
   {
     return powerTypes;
   }
-  
+
   @StateChange
-  public CustomerInfo addPowerType (PowerType type)
+  public CustomerInfo addPowerType(PowerType type)
   {
     powerTypes.add(type);
     return this;
   }
 
-  public boolean isMultiContracting ()
+  public boolean isMultiContracting()
   {
     return multiContracting;
   }
-  
+
   @StateChange
-  public CustomerInfo withMultiContracting (boolean value)
+  public CustomerInfo withMultiContracting(boolean value)
   {
     multiContracting = value;
     return this;
   }
 
-  public boolean isCanNegotiate ()
+  public boolean isCanNegotiate()
   {
     return canNegotiate;
   }
-  
+
   @StateChange
-  public CustomerInfo withCanNegotiate (boolean value)
+  public CustomerInfo withCanNegotiate(boolean value)
   {
     canNegotiate = value;
     return this;
   }
 
-  public String toString() {
+  public String toString()
+  {
     return "CustomerInfo(" + name + ")";
   }
 }

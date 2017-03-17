@@ -14,7 +14,7 @@
     <groupId>org.powertac</groupId>
     <artifactId>powertac-parent</artifactId>
     <version>1.4.2-SNAPSHOT</version>
-    <relativePath />
+    <relativePath>../powertac-parent/pom.xml</relativePath>
   </parent>
 
 

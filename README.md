@@ -1,1 +1,5 @@
-Domain definitions common to server and broker. Issue tracking at https://github.com/powertac/powertac-server/issues
+# Discontinued
+
+This repository is no longer maintained separately, but now a part of
+[powertac-core](https://github.com/powertac/powertac-core/).
+
